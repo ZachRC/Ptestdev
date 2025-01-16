@@ -3,7 +3,7 @@
 # Stop execution if a command fails
 set -e
 
-domains=(solforge.live www.solforge.live)
+domains=(reachero.com www.reachero.com)
 rsa_key_size=4096
 data_path="./certbot"
 email="zacharyrcherney@gmail.com"
@@ -17,7 +17,7 @@ rm -rf "$data_path"
 
 # Create the required directories
 mkdir -p "$data_path/www"
-mkdir -p "$data_path/conf/live/solforge.live"
+mkdir -p "$data_path/conf/live/reachero.com"
 
 # Download TLS parameters
 echo "### Downloading recommended TLS parameters ..."
@@ -27,8 +27,8 @@ curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot/certbot
 # Create dummy certificates
 echo "### Creating dummy certificate for ${domains[0]} ..."
 openssl req -x509 -nodes -newkey rsa:$rsa_key_size -days 1\
-  -keyout "$data_path/conf/live/solforge.live/privkey.pem" \
-  -out "$data_path/conf/live/solforge.live/fullchain.pem" \
+  -keyout "$data_path/conf/live/reachero.com/privkey.pem" \
+  -out "$data_path/conf/live/reachero.com/fullchain.pem" \
   -subj '/CN=localhost' 2>/dev/null
 
 # Start nginx
@@ -48,7 +48,7 @@ docker-compose run --rm --entrypoint "\
     --no-eff-email \
     --staging \
     --force-renewal \
-    -d solforge.live -d www.solforge.live" certbot
+    -d reachero.com -d www.reachero.com" certbot
 
 echo "### Reloading nginx ..."
 docker-compose exec nginx nginx -s reload 
