@@ -59,7 +59,7 @@ LOGGING = {
         },
         'django.db.backends': {
             'handlers': ['console', 'file'],
-            'level': 'INFO',
+            'level': 'DEBUG',
             'propagate': False,
         },
     },
@@ -122,26 +122,39 @@ database_url = os.getenv('DATABASE_URL')
 if not database_url:
     raise ValueError("DATABASE_URL environment variable is not set")
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=database_url,
-        conn_max_age=0,  # Use 0 for transaction pooling
-        ssl_require=True,
-        engine='django.db.backends.postgresql',
-    )
+# Update logging for database issues
+LOGGING['loggers']['django.db.backends'] = {
+    'handlers': ['console', 'file'],
+    'level': 'DEBUG',
+    'propagate': False,
 }
 
-# Add connection options for better error handling
-DATABASES['default']['OPTIONS'] = {
-    'connect_timeout': 10,
-    'application_name': 'django_app',
-    'keepalives': 1,
-    'keepalives_idle': 30,
-    'keepalives_interval': 10,
-    'keepalives_count': 5,
-    'sslmode': 'require',
-    'options': f'-c search_path=public',
+# Configure database with optimized settings for Supabase
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'OPTIONS': {
+            'options': '-c search_path=public',
+            'sslmode': 'require',
+            'connect_timeout': 30,
+            'keepalives': 1,
+            'keepalives_idle': 130,
+            'keepalives_interval': 10,
+            'keepalives_count': 10,
+            'application_name': 'django_app',
+            'client_encoding': 'UTF8',
+        },
+    }
 }
+
+# Parse database URL and update configuration
+db_config = dj_database_url.parse(database_url)
+DATABASES['default'].update(db_config)
+
+# Ensure these settings are not overridden
+DATABASES['default']['CONN_MAX_AGE'] = 0
+DATABASES['default']['POOL_TIMEOUT'] = 30
+DATABASES['default']['OPTIONS']['sslmode'] = 'require'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
