@@ -2,8 +2,11 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.conf import settings
+from django.http import JsonResponse
 from .models import CustomUser
 from django.db.models import Q
+from .stripe_utils import create_subscription_session, handle_subscription_success
 
 def index(request):
     return render(request, 'main/index.html')
@@ -66,4 +69,28 @@ def register_view(request):
 
 @login_required
 def dashboard(request):
-    return render(request, 'main/dashboard.html')
+    context = {
+        'stripe_key': settings.STRIPE_PUBLISHABLE_KEY,
+    }
+    return render(request, 'main/dashboard.html', context)
+
+@login_required
+def create_checkout_session(request):
+    try:
+        session = create_subscription_session(request.user)
+        return JsonResponse({'sessionId': session.id})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@login_required
+def subscription_success(request):
+    session_id = request.GET.get('session_id')
+    if session_id:
+        handle_subscription_success(session_id)
+    messages.success(request, 'Successfully subscribed!')
+    return redirect('main:dashboard')
+
+@login_required
+def subscription_cancel(request):
+    messages.info(request, 'Subscription cancelled.')
+    return redirect('main:dashboard')

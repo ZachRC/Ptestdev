@@ -111,7 +111,10 @@ while [ $retry_count -lt $max_retries ]; do
     fi
 done
 
-# Apply database migrations
+# Make and apply migrations
+log "Making migrations..."
+docker-compose exec -T web python manage.py makemigrations
+
 log "Applying database migrations..."
 docker-compose exec -T web python manage.py migrate
 

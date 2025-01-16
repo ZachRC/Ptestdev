@@ -2,6 +2,10 @@
 
 {% block title %}Dashboard - Premium App{% endblock %}
 
+{% block extra_head %}
+<script src="https://js.stripe.com/v3/"></script>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
     <!-- Welcome Section -->
@@ -10,8 +14,28 @@
             Welcome, {{ user.username }}
         </h1>
         <p class="text-gray-400">
-            Manage your account and view your activity
+            Manage your account and subscription
         </p>
+    </div>
+
+    <!-- Subscription Status -->
+    <div class="glass-card rounded-2xl p-8">
+        <h2 class="text-2xl font-bold mb-4">Subscription Status</h2>
+        {% if user.is_subscription_active %}
+            <div class="bg-green-500/20 text-green-400 rounded-lg p-4 mb-4">
+                <p class="font-semibold">Active Premium Subscription</p>
+                <p class="text-sm">Valid until: {{ user.subscription_end|date:"F j, Y" }}</p>
+            </div>
+        {% else %}
+            <div class="bg-yellow-500/20 text-yellow-400 rounded-lg p-4 mb-4">
+                <p class="font-semibold">No Active Subscription</p>
+                <p class="text-sm">Subscribe to access premium features</p>
+            </div>
+            <button id="subscribe-button" 
+                    class="bg-gradient-to-r from-blue-500 to-violet-500 text-white px-6 py-2 rounded-lg hover:opacity-90 transition-opacity">
+                Subscribe - $5/month
+            </button>
+        {% endif %}
     </div>
 
     <!-- Stats Grid -->
@@ -38,33 +62,49 @@
 
         <div class="glass-card rounded-2xl p-6">
             <div class="flex items-center justify-between">
-                <h3 class="text-lg font-medium text-gray-300">Email Status</h3>
-                <span class="h-8 w-8 rounded-full bg-violet-500/20 flex items-center justify-center">
-                    <span class="h-3 w-3 rounded-full bg-violet-500"></span>
+                <h3 class="text-lg font-medium text-gray-300">Subscription</h3>
+                <span class="h-8 w-8 rounded-full {% if user.is_subscription_active %}bg-green-500/20{% else %}bg-yellow-500/20{% endif %} flex items-center justify-center">
+                    <span class="h-3 w-3 rounded-full {% if user.is_subscription_active %}bg-green-500{% else %}bg-yellow-500{% endif %}"></span>
                 </span>
             </div>
-            <p class="mt-2 text-2xl font-semibold">Verified</p>
-        </div>
-    </div>
-
-    <!-- Recent Activity -->
-    <div class="glass-card rounded-2xl p-8">
-        <h2 class="text-2xl font-bold mb-6">Recent Activity</h2>
-        <div class="space-y-4">
-            <div class="flex items-center justify-between p-4 rounded-lg bg-white/5">
-                <div class="flex items-center space-x-4">
-                    <div class="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                        <svg class="h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="font-medium">Last Login</p>
-                        <p class="text-sm text-gray-400">{{ user.last_login|date:"M d, Y H:i" }}</p>
-                    </div>
-                </div>
-            </div>
+            <p class="mt-2 text-2xl font-semibold">{% if user.is_subscription_active %}Premium{% else %}Free{% endif %}</p>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const stripe = Stripe('{{ stripe_key }}');
+    const subscribeButton = document.getElementById('subscribe-button');
+    
+    if (subscribeButton) {
+        subscribeButton.addEventListener('click', async function() {
+            try {
+                const response = await fetch('/subscription/create-checkout-session/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                });
+                const session = await response.json();
+                
+                if (session.error) {
+                    console.error('Error:', session.error);
+                    return;
+                }
+                
+                const result = await stripe.redirectToCheckout({
+                    sessionId: session.sessionId
+                });
+                
+                if (result.error) {
+                    console.error('Error:', result.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+    }
+});
+</script>
 {% endblock %} 

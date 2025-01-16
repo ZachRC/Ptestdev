@@ -10,4 +10,7 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path('subscription/create-checkout-session/', views.create_checkout_session, name='create-checkout-session'),
+    path('subscription/success/', views.subscription_success, name='subscription-success'),
+    path('subscription/cancel/', views.subscription_cancel, name='subscription-cancel'),
 ] 

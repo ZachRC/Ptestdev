@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
+import stripe
 
 # Load environment variables
 load_dotenv()
@@ -197,3 +198,11 @@ if not DEBUG:
 # CORS Settings
 CORS_ALLOWED_ORIGINS = CSRF_TRUSTED_ORIGINS
 CORS_ALLOW_CREDENTIALS = True
+
+# Add after ALLOWED_HOSTS
+SITE_URL = 'https://reachero.com'
+
+# Stripe Settings
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+SUBSCRIPTION_PRICE_AMOUNT = int(os.getenv('SUBSCRIPTION_PRICE_AMOUNT', 500))  # $5.00 in cents
