@@ -17,6 +17,9 @@ if ! command -v docker-compose &> /dev/null; then
     sudo chmod +x /usr/local/bin/docker-compose
 fi
 
+# Create necessary directories
+mkdir -p static media staticfiles
+
 # Stop and remove existing containers
 docker-compose down
 

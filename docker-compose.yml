@@ -7,10 +7,13 @@ services:
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+      - ./static:/app/static
     env_file:
       - .env
     depends_on:
       - certbot
+    networks:
+      - web_network
 
   nginx:
     image: nginx:alpine
@@ -26,6 +29,8 @@ services:
       - "443:443"
     depends_on:
       - web
+    networks:
+      - web_network
 
   certbot:
     image: certbot/certbot
@@ -33,9 +38,15 @@ services:
       - certbot_data:/etc/letsencrypt
       - certbot_www:/var/www/certbot
     command: certonly --webroot --webroot-path=/var/www/certbot --email admin@solforge.live --agree-tos --no-eff-email -d solforge.live -d www.solforge.live
+    networks:
+      - web_network
 
 volumes:
   static_volume:
   media_volume:
   certbot_data:
-  certbot_www: 
+  certbot_www:
+
+networks:
+  web_network:
+    driver: bridge 
