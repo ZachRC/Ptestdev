@@ -30,6 +30,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "[::]:80:80"
+      - "[::]:443:443"
     depends_on:
       - web
     networks:
@@ -53,6 +55,9 @@ volumes:
 networks:
   web_network:
     driver: bridge
+    enable_ipv6: true
     ipam:
       config:
-        - subnet: 172.20.0.0/16 
+        - subnet: 172.20.0.0/16
+        - subnet: "2604:a880:400:d1::cca3:d000/64"
+          gateway: "2604:a880:400:d1::1" 
