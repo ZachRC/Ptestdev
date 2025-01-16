@@ -1,208 +1,237 @@
 # Premium Web Application with Desktop Client
 
-A full-stack subscription-based web application with an integrated desktop client. The system includes user authentication, Stripe subscription management, and a desktop application that's accessible only to subscribed users.
+A full-stack subscription-based web application with an integrated desktop client. The system includes user authentication, Stripe subscription management, and a desktop task management application that's accessible only to subscribed users.
 
-## System Architecture
+## System Components
 
-### Web Application (Django)
-- **Authentication System**: Custom user model with email/username login
-- **Subscription Management**: Stripe integration for handling subscriptions
-- **Case-insensitive Authentication**: Email and username handling is case-insensitive
-- **Security Features**: CSP headers, CSRF protection, and secure session handling
+### Web Application
+- Django-based web application
+- Custom user model with case-insensitive email/username authentication
+- Stripe subscription integration ($5/month)
+- Modern UI with Tailwind CSS
 
-### Desktop Application (PyWebView)
-- **Authentication**: Connects to web app's API for user validation
-- **Subscription Check**: Only allows access to users with active subscriptions
-- **Cross-platform**: Works on Windows, macOS, and Linux
+### Desktop Application
+- PyWebView-based task management app
+- Requires active subscription to access
+- Real-time task management with priority levels
 
-## Setup Guide
+## Initial Setup
 
-### 1. Environment Variables
-Create a `.env` file in the webapp directory with the following variables:
+### Web Application (.env)
+Create a `.env` file in the webapp directory with these exact variables:
 ```env
-SECRET_KEY=your_django_secret_key
+SECRET_KEY=your-django-secret-key
 DEBUG=False
 ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-DATABASE_URL=your_database_url
-STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_SECRET_KEY=your_stripe_secret_key
-SUBSCRIPTION_PRICE_AMOUNT=500  # $5.00 in cents
+DATABASE_URL=postgres://user:password@localhost:5432/dbname
+STRIPE_PUBLISHABLE_KEY=pk_live_your_stripe_publishable_key
+STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key
+SUBSCRIPTION_PRICE_AMOUNT=500
 SITE_URL=https://yourdomain.com
 ```
 
-### 2. Database Setup
-1. Create a PostgreSQL database
-2. Update the `DATABASE_URL` in `.env` with your database credentials:
-```
-DATABASE_URL=postgres://user:password@host:port/database_name
-```
-
-### 3. Stripe Setup
-1. Create a Stripe account
-2. Get your API keys from the Stripe dashboard
-3. Update the `.env` file with your Stripe keys
-4. Set up a webhook in Stripe dashboard pointing to: `https://yourdomain.com/stripe/webhook/`
-
-### 4. Web Application Deployment
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Run migrations:
-```bash
-python manage.py makemigrations
-python manage.py migrate
-```
-
-3. Collect static files:
-```bash
-python manage.py collectstatic
-```
-
-4. Configure your web server (Nginx configuration provided in `nginx/nginx.conf`)
-
-### 5. Desktop Application Setup
-1. Navigate to the desktop directory
-2. Create a `.env` file:
+### Desktop Application (.env)
+Create a `.env` file in the desktop directory:
 ```env
 API_BASE_URL=https://yourdomain.com
 ```
 
-3. Install dependencies:
+## Deployment Process
+
+### First-Time Deployment
+1. On your VPS:
 ```bash
-pip install -r requirements.txt
+# Clone the repository
+git clone your-repo-url
+cd your-repo-directory
+
+# Create and set up .env file
+nano webapp/.env
+# Add the environment variables as shown above
+
+# Run initialization script
+./init-letsencrypt.sh
+
+# Deploy the application
+./deploy.sh
 ```
 
-4. Run the desktop app:
+### Updates/Changes Deployment
+1. On your local machine:
 ```bash
-python app.py
+# Push changes to GitHub
+git add .
+git commit -m "your commit message"
+git push origin main
 ```
 
-## Migrating to a New Server/Domain
-
-### 1. Database Migration
-1. Create a backup of your existing database:
+2. On your VPS:
 ```bash
-pg_dump your_old_db > backup.sql
+# Navigate to project directory
+cd your-repo-directory
+
+# Pull latest changes
+git pull
+
+# Deploy updates
+./deploy.sh
 ```
 
-2. Restore to the new database:
+## Changing Domain/Server
+
+### 1. Database Backup (Optional - If Moving Servers)
 ```bash
-psql your_new_db < backup.sql
+# On old server
+pg_dump -U your_db_user your_db_name > backup.sql
+
+# On new server
+psql -U your_db_user your_db_name < backup.sql
 ```
 
-### 2. Environment Updates
+### 2. Update Web Application
+1. Update `.env` file with new domain:
+```env
+ALLOWED_HOSTS=newdomain.com,www.newdomain.com
+CSRF_TRUSTED_ORIGINS=https://newdomain.com,https://www.newdomain.com
+SITE_URL=https://newdomain.com
+```
 
-#### Web Application
-1. Update `.env` file with new values:
-   - `ALLOWED_HOSTS`
-   - `CSRF_TRUSTED_ORIGINS`
-   - `DATABASE_URL`
-   - `SITE_URL`
+2. Update Nginx configuration in `nginx/nginx.conf`:
+```nginx
+server_name newdomain.com www.newdomain.com;
+```
 
-2. Update Stripe webhook URL in Stripe dashboard to point to your new domain
+3. Run SSL setup:
+```bash
+./init-letsencrypt.sh
+```
 
-#### Desktop Application
+4. Deploy changes:
+```bash
+./deploy.sh
+```
+
+### 3. Update Desktop Application
 1. Update `.env` file:
-   - `API_BASE_URL` to point to your new domain
-
-### 3. DNS and SSL
-1. Update DNS records to point to your new server
-2. Generate new SSL certificates:
-```bash
-certbot certonly --webroot -w /var/www/certbot -d yourdomain.com -d www.yourdomain.com
+```env
+API_BASE_URL=https://newdomain.com
 ```
 
-### 4. Nginx Configuration
-1. Update `nginx/nginx.conf`:
-   - Server names
-   - SSL certificate paths
-   - Static/media file paths
+## Features and Usage
 
-## Security Considerations
+### User Management
+- Case-insensitive email/username login
+- Profile management (email, username, password updates)
+- Account deletion with automatic subscription cancellation
 
-### Web Application
-- All passwords are hashed using Django's password hasher
-- CSRF protection enabled for all POST requests
-- CSP headers configured for security
-- SSL/TLS required for all connections
-- Case-insensitive email/username handling to prevent duplicate accounts
+### Subscription Management
+- $5/month subscription using Stripe
+- Automatic access management
+- Subscription cancellation with remaining time honored
 
 ### Desktop Application
-- Requires valid subscription for access
-- Authentication token required for all operations
-- API requests only work over HTTPS
+- Available only to subscribed users
+- Task management with priority levels
+- Real-time updates
+- Secure authentication with web application
 
 ## File Structure
 ```
 webapp/
-├── core/                 # Django project settings
-├── main/                 # Main application
+├── core/                 # Project settings
+│   ├── settings.py      # Main settings file
+│   └── urls.py          # Main URL routing
+├── main/                # Main application
 │   ├── models.py        # User and subscription models
-│   ├── views.py         # Application views
-│   ├── urls.py          # URL routing
-│   └── stripe_utils.py  # Stripe integration utilities
+│   ├── views.py         # Views and API endpoints
+│   ├── urls.py          # App URL routing
+│   └── stripe_utils.py  # Stripe integration
 ├── templates/           # HTML templates
 ├── static/              # Static files
 ├── nginx/              # Nginx configuration
+├── init-letsencrypt.sh # SSL setup script
+├── deploy.sh           # Deployment script
 └── requirements.txt    # Python dependencies
 
 desktop/
-├── app.py             # Desktop application main file
+├── app.py             # Desktop app main file
 ├── index.html         # Desktop UI
-├── requirements.txt   # Desktop app dependencies
-└── .env              # Desktop environment variables
+├── requirements.txt   # Dependencies
+└── .env              # Configuration
 ```
 
-## Common Issues and Solutions
+## Common Issues
 
-### Subscription Issues
-1. **Webhook Failures**: Ensure Stripe webhook URL is correctly configured
-2. **Payment Processing**: Check Stripe dashboard for payment logs
-3. **Subscription Status**: Verify subscription_end dates in admin panel
+### Deployment Issues
+1. **Permission Errors**:
+   ```bash
+   chmod +x deploy.sh
+   chmod +x init-letsencrypt.sh
+   ```
 
-### Authentication Issues
-1. **Login Failures**: Check case-sensitivity of email/username
-2. **Desktop Access**: Verify subscription status and API connectivity
-3. **Token Errors**: Check CSRF token configuration
+2. **Database Connection**:
+   - Verify PostgreSQL is running
+   - Check DATABASE_URL format
+   - Ensure database user permissions
 
-### Server Migration
-1. **Database Connection**: Verify DATABASE_URL format and credentials
-2. **Static Files**: Run collectstatic after migration
-3. **SSL Certificates**: Ensure proper SSL certificate installation
+3. **SSL Certificate**:
+   - Run `init-letsencrypt.sh` for new domains
+   - Check certificate renewal status
 
-## Support and Maintenance
+### Application Issues
+1. **Subscription Not Recognized**:
+   - Check Stripe keys in .env
+   - Verify subscription_end date in admin panel
+   - Ensure subscription_status is correct
 
-### Regular Maintenance
-1. Keep Django and dependencies updated
-2. Monitor Stripe webhook logs
-3. Backup database regularly
-4. Check SSL certificate expiration
+2. **Desktop App Connection**:
+   - Verify API_BASE_URL in desktop/.env
+   - Check subscription status
+   - Ensure CORS settings in Django
 
-### Monitoring
-1. Set up error logging
-2. Monitor subscription status changes
-3. Track failed login attempts
-4. Monitor API endpoint performance
-
-## Development and Testing
+## Development Setup
 
 ### Local Development
-1. Set DEBUG=True in .env
-2. Use SQLite for local database
-3. Use Stripe test keys
-4. Run development server:
+1. Set up local environment:
 ```bash
-python manage.py runserver
+# Clone repository
+git clone your-repo-url
+cd your-repo-directory
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+
+# Install dependencies
+pip install -r webapp/requirements.txt
+pip install -r desktop/requirements.txt
+
+# Set up .env files for development
+# webapp/.env
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+DATABASE_URL=sqlite:///db.sqlite3
+STRIPE_PUBLISHABLE_KEY=pk_test_your_test_key
+STRIPE_SECRET_KEY=sk_test_your_test_key
+SITE_URL=http://localhost:8000
+
+# desktop/.env
+API_BASE_URL=http://localhost:8000
 ```
 
-### Testing
-1. Run Django tests:
+2. Run development servers:
 ```bash
-python manage.py test
+# Web application
+python webapp/manage.py runserver
+
+# Desktop application (in separate terminal)
+python desktop/app.py
 ```
 
-2. Test Stripe webhooks locally using Stripe CLI
-3. Test desktop app with local API endpoint 
+## Security Notes
+- All passwords are hashed using Django's password hasher
+- Email/username comparisons are case-insensitive
+- CSRF protection enabled for all POST requests
+- SSL required in production
+- Desktop app requires valid subscription token 
