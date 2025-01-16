@@ -30,8 +30,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "[::]:80:80"
-      - "[::]:443:443"
     depends_on:
       - web
     networks:
@@ -59,5 +57,4 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/16
-        - subnet: "2604:a880:400:d1::/64"
-          gateway: "2604:a880:400:d1::1" 
+        - subnet: "fd00::/80" 
