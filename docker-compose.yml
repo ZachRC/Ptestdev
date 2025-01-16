@@ -20,8 +20,8 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       - ./nginx:/etc/nginx/conf.d
-      - certbot_data:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     ports:
       - "80:80"
       - "443:443"
@@ -34,17 +34,14 @@ services:
   certbot:
     image: certbot/certbot
     volumes:
-      - certbot_data:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     depends_on:
       - nginx
-    command: certonly --webroot --webroot-path=/var/www/certbot --email zacharyrcherney@gmail.com --agree-tos --no-eff-email -d solforge.live -d www.solforge.live --staging
 
 volumes:
   static_volume:
   media_volume:
-  certbot_data:
-  certbot_www:
 
 networks:
   web_network:
