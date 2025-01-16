@@ -15,4 +15,5 @@ urlpatterns = [
     path('subscription/cancel/', views.subscription_cancel, name='subscription-cancel'),
     path('account/delete/', views.delete_account, name='delete-account'),
     path('api/auth/login/', views.api_login, name='api-login'),
+    path('profile/update/', views.update_profile, name='update-profile'),
 ] 

@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
@@ -82,6 +82,56 @@ def api_login(request):
             'error': 'Server error',
             'message': str(e)
         }, status=500)
+
+@login_required
+def update_profile(request):
+    if request.method == 'POST':
+        user = request.user
+        
+        # Handle profile update
+        if 'update_profile' in request.POST:
+            new_username = request.POST.get('username')
+            new_email = request.POST.get('email')
+            
+            # Check if email is already taken by another user
+            if new_email != user.email and CustomUser.objects.filter(email=new_email).exists():
+                messages.error(request, 'Email is already taken')
+                return redirect('main:dashboard')
+            
+            # Check if username is already taken by another user
+            if new_username != user.username and CustomUser.objects.filter(username=new_username).exists():
+                messages.error(request, 'Username is already taken')
+                return redirect('main:dashboard')
+            
+            user.username = new_username
+            user.email = new_email
+            user.save()
+            messages.success(request, 'Profile updated successfully')
+        
+        # Handle password change
+        elif 'change_password' in request.POST:
+            current_password = request.POST.get('current_password')
+            new_password = request.POST.get('new_password')
+            confirm_password = request.POST.get('confirm_password')
+            
+            if not user.check_password(current_password):
+                messages.error(request, 'Current password is incorrect')
+                return redirect('main:dashboard')
+            
+            if new_password != confirm_password:
+                messages.error(request, 'New passwords do not match')
+                return redirect('main:dashboard')
+            
+            if len(new_password) < 8:
+                messages.error(request, 'Password must be at least 8 characters long')
+                return redirect('main:dashboard')
+            
+            user.set_password(new_password)
+            user.save()
+            update_session_auth_hash(request, user)  # Keep user logged in
+            messages.success(request, 'Password changed successfully')
+            
+    return redirect('main:dashboard')
 
 def register_view(request):
     if request.method == 'POST':
