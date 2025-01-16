@@ -16,31 +16,23 @@ def index(request):
 
 def login_view(request):
     if request.method == 'POST':
-        login_identifier = request.POST.get('login_identifier')
+        login_identifier = request.POST.get('login_identifier', '').lower()
         password = request.POST.get('password')
         
-        # First try to authenticate with the identifier as is (email)
-        user = authenticate(request, username=login_identifier, password=password)
-        
-        if not user:
-            try:
-                # Try to find user by username
-                user_by_username = CustomUser.objects.get(username=login_identifier)
-                # If found, authenticate with their email
-                user = authenticate(request, username=user_by_username.email, password=password)
-            except CustomUser.DoesNotExist:
-                try:
-                    # Try to find user by email
-                    user_by_email = CustomUser.objects.get(email=login_identifier)
-                    # If found, authenticate with their email
-                    user = authenticate(request, username=user_by_email.email, password=password)
-                except CustomUser.DoesNotExist:
-                    user = None
-        
-        if user is not None:
-            login(request, user)
-            return redirect('main:dashboard')
-        else:
+        try:
+            # Try to find user by email or username (case-insensitive)
+            user = CustomUser.objects.get(
+                Q(email__iexact=login_identifier) | Q(username__iexact=login_identifier)
+            )
+            # If found, authenticate with their email
+            user = authenticate(request, username=user.email, password=password)
+            
+            if user is not None:
+                login(request, user)
+                return redirect('main:dashboard')
+            else:
+                messages.error(request, 'Invalid credentials')
+        except CustomUser.DoesNotExist:
             messages.error(request, 'Invalid credentials')
     
     return render(request, 'main/login.html')
@@ -50,28 +42,37 @@ def login_view(request):
 def api_login(request):
     try:
         data = json.loads(request.body)
-        email = data.get('email')
+        email = data.get('email', '').lower()
         password = data.get('password')
         
-        user = authenticate(request, username=email, password=password)
-        
-        if user is not None:
-            if user.is_subscription_active:
-                return JsonResponse({
-                    'token': 'desktop_token',  # In a real app, generate a proper token
-                    'user': {
-                        'email': user.email,
-                        'username': user.username,
-                        'is_subscription_active': user.is_subscription_active,
-                        'subscription_end': user.subscription_end.isoformat() if user.subscription_end else None
-                    }
-                })
+        try:
+            # Try to find user by email (case-insensitive)
+            user = CustomUser.objects.get(email__iexact=email)
+            # If found, authenticate with their email
+            user = authenticate(request, username=user.email, password=password)
+            
+            if user is not None:
+                if user.is_subscription_active:
+                    return JsonResponse({
+                        'token': 'desktop_token',  # In a real app, generate a proper token
+                        'user': {
+                            'email': user.email,
+                            'username': user.username,
+                            'is_subscription_active': user.is_subscription_active,
+                            'subscription_end': user.subscription_end.isoformat() if user.subscription_end else None
+                        }
+                    })
+                else:
+                    return JsonResponse({
+                        'error': 'Subscription required',
+                        'message': 'Active subscription required to use the desktop app'
+                    }, status=403)
             else:
                 return JsonResponse({
-                    'error': 'Subscription required',
-                    'message': 'Active subscription required to use the desktop app'
-                }, status=403)
-        else:
+                    'error': 'Invalid credentials',
+                    'message': 'Invalid email or password'
+                }, status=401)
+        except CustomUser.DoesNotExist:
             return JsonResponse({
                 'error': 'Invalid credentials',
                 'message': 'Invalid email or password'
@@ -90,16 +91,16 @@ def update_profile(request):
         
         # Handle profile update
         if 'update_profile' in request.POST:
-            new_username = request.POST.get('username')
-            new_email = request.POST.get('email')
+            new_username = request.POST.get('username', '').lower()
+            new_email = request.POST.get('email', '').lower()
             
-            # Check if email is already taken by another user
-            if new_email != user.email and CustomUser.objects.filter(email=new_email).exists():
+            # Check if email is already taken by another user (case-insensitive)
+            if new_email != user.email.lower() and CustomUser.objects.filter(email__iexact=new_email).exists():
                 messages.error(request, 'Email is already taken')
                 return redirect('main:dashboard')
             
-            # Check if username is already taken by another user
-            if new_username != user.username and CustomUser.objects.filter(username=new_username).exists():
+            # Check if username is already taken by another user (case-insensitive)
+            if new_username != user.username.lower() and CustomUser.objects.filter(username__iexact=new_username).exists():
                 messages.error(request, 'Username is already taken')
                 return redirect('main:dashboard')
             
@@ -135,8 +136,8 @@ def update_profile(request):
 
 def register_view(request):
     if request.method == 'POST':
-        email = request.POST.get('email')
-        username = request.POST.get('username')
+        email = request.POST.get('email', '').lower()
+        username = request.POST.get('username', '').lower()
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         
@@ -144,7 +145,8 @@ def register_view(request):
             messages.error(request, 'Passwords do not match')
             return redirect('main:register')
             
-        if CustomUser.objects.filter(Q(email=email) | Q(username=username)).exists():
+        # Check for existing users (case-insensitive)
+        if CustomUser.objects.filter(Q(email__iexact=email) | Q(username__iexact=username)).exists():
             messages.error(request, 'Email or username already exists')
             return redirect('main:register')
             

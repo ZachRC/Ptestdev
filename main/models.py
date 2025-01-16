@@ -6,7 +6,14 @@ class CustomUserManager(BaseUserManager):
     def create_user(self, email, username, password=None, **extra_fields):
         if not email:
             raise ValueError('The Email field must be set')
-        email = self.normalize_email(email)
+        # Normalize both email and username to lowercase
+        email = self.normalize_email(email).lower()
+        username = username.lower()
+        
+        # Check for existing users case-insensitively
+        if self.model.objects.filter(models.Q(email__iexact=email) | models.Q(username__iexact=username)).exists():
+            raise ValueError('A user with this email or username already exists')
+            
         user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -16,6 +23,10 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(email, username, password, **extra_fields)
+
+    def get_by_natural_key(self, username):
+        # Override to make the lookup case-insensitive
+        return self.get(models.Q(email__iexact=username) | models.Q(username__iexact=username))
 
 class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)
@@ -41,6 +52,12 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.email
+
+    def save(self, *args, **kwargs):
+        # Ensure email and username are always stored in lowercase
+        self.email = self.email.lower()
+        self.username = self.username.lower()
+        super().save(*args, **kwargs)
 
     @property
     def is_subscription_active(self):
