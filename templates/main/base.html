@@ -5,76 +5,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Premium App{% endblock %}</title>
+    <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
     <style>
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-        .premium-gradient {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            background: linear-gradient(to bottom right, #1a1a2e, #16213e);
+            color: white;
+            min-height: 100vh;
         }
         .glass-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .premium-input {
             background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-        .premium-input:focus {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-        .premium-button {
-            background: linear-gradient(135deg, #646cff 0%, #4c54e8 100%);
-            transition: all 0.3s ease;
-        }
-        .premium-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(100, 108, 255, 0.4);
         }
     </style>
 </head>
-<body class="premium-gradient min-h-screen text-gray-100">
-    <!-- Navigation -->
-    <nav class="glass-card">
+<body class="antialiased">
+    {% if messages %}
+    <div class="fixed top-4 right-4 z-50">
+        {% for message in messages %}
+        <div class="p-4 mb-4 rounded-lg {% if message.tags == 'error' %}bg-red-500/20 text-red-400{% else %}bg-green-500/20 text-green-400{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <nav class="glass-card border-b border-white/10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="{% url 'main:index' %}" class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 text-transparent bg-clip-text">
-                        Premium App
-                    </a>
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="{% url 'main:index' %}" class="text-xl font-bold">Premium App</a>
+                    </div>
                 </div>
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center">
                     {% if user.is_authenticated %}
-                        <a href="{% url 'main:dashboard' %}" class="text-sm font-medium hover:text-blue-400 transition-colors">Dashboard</a>
-                        <a href="{% url 'main:logout' %}" class="text-sm font-medium hover:text-blue-400 transition-colors">Logout</a>
+                        <a href="{% url 'main:dashboard' %}" class="text-gray-300 hover:text-white px-3 py-2">Dashboard</a>
+                        <a href="{% url 'main:logout' %}" class="text-gray-300 hover:text-white px-3 py-2">Logout</a>
                     {% else %}
-                        <a href="{% url 'main:login' %}" class="text-sm font-medium hover:text-blue-400 transition-colors">Login</a>
-                        <a href="{% url 'main:register' %}" class="text-sm font-medium hover:text-blue-400 transition-colors">Register</a>
+                        <a href="{% url 'main:login' %}" class="text-gray-300 hover:text-white px-3 py-2">Login</a>
+                        <a href="{% url 'main:register' %}" class="text-gray-300 hover:text-white px-3 py-2">Register</a>
                     {% endif %}
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Messages -->
-    {% if messages %}
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-            {% for message in messages %}
-                <div class="glass-card p-4 rounded-lg {% if message.tags == 'error' %}border-red-500{% else %}border-green-500{% endif %} border-l-4">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
-    <!-- Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% csrf_token %}
         {% block content %}{% endblock %}
     </main>
+
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html> 

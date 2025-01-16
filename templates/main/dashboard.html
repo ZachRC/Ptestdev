@@ -2,10 +2,6 @@
 
 {% block title %}Dashboard - Premium App{% endblock %}
 
-{% block extra_head %}
-<script src="https://js.stripe.com/v3/"></script>
-{% endblock %}
-
 {% block content %}
 <div class="space-y-6">
     <!-- Welcome Section -->
@@ -71,40 +67,42 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const stripe = Stripe('{{ stripe_key }}');
-    const subscribeButton = document.getElementById('subscribe-button');
-    
-    if (subscribeButton) {
-        subscribeButton.addEventListener('click', async function() {
-            try {
-                const response = await fetch('/subscription/create-checkout-session/', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                    },
-                });
-                const session = await response.json();
-                
-                if (session.error) {
-                    console.error('Error:', session.error);
-                    return;
-                }
-                
-                const result = await stripe.redirectToCheckout({
-                    sessionId: session.sessionId
-                });
-                
-                if (result.error) {
-                    console.error('Error:', result.error);
-                }
-            } catch (error) {
-                console.error('Error:', error);
+const stripe = Stripe('{{ stripe_key }}');
+const subscribeButton = document.getElementById('subscribe-button');
+
+if (subscribeButton) {
+    subscribeButton.addEventListener('click', async function() {
+        try {
+            const response = await fetch('/subscription/create-checkout-session/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('Error:', data.error);
+                return;
             }
-        });
-    }
-});
+            
+            const result = await stripe.redirectToCheckout({
+                sessionId: data.sessionId
+            });
+            
+            if (result.error) {
+                console.error('Error:', result.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    });
+}
 </script>
 {% endblock %} 
