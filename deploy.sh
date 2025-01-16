@@ -20,14 +20,40 @@ fi
 # Create necessary directories
 mkdir -p static media staticfiles
 
-# Stop and remove existing containers
-docker-compose down
+# Stop and remove existing containers and volumes
+docker-compose down -v
+
+# Clean up old images
+docker system prune -f
 
 # Pull latest changes
 git pull origin main
 
 # Build and start containers
 docker-compose up --build -d
+
+# Wait for web service to be ready
+echo "Waiting for web service to be ready..."
+sleep 10
+
+# Test database connection
+max_retries=5
+retry_count=0
+while [ $retry_count -lt $max_retries ]; do
+    if docker-compose exec web python manage.py migrate --check; then
+        echo "Database connection successful"
+        break
+    else
+        echo "Database connection failed, retrying in 5 seconds..."
+        sleep 5
+        retry_count=$((retry_count + 1))
+    fi
+done
+
+if [ $retry_count -eq $max_retries ]; then
+    echo "Failed to connect to database after $max_retries attempts"
+    exit 1
+fi
 
 # Apply database migrations
 docker-compose exec web python manage.py migrate
