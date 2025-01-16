@@ -1,237 +1,244 @@
-# Premium Web Application with Desktop Client
+# Deployment Guide
 
-A full-stack subscription-based web application with an integrated desktop client. The system includes user authentication, Stripe subscription management, and a desktop task management application that's accessible only to subscribed users.
+This guide will help you deploy this web application using Digital Ocean, Supabase, and set up your domain.
 
-## System Components
+## Prerequisites
 
-### Web Application
-- Django-based web application
-- Custom user model with case-insensitive email/username authentication
-- Stripe subscription integration ($5/month)
-- Modern UI with Tailwind CSS
+- A Digital Ocean account
+- A Supabase account
+- A domain name
+- Stripe account (for subscription handling)
 
-### Desktop Application
-- PyWebView-based task management app
-- Requires active subscription to access
-- Real-time task management with priority levels
+## Step 1: Database Setup (Supabase)
 
-## Initial Setup
+1. Create a new Supabase project
+2. Go to Project Settings > Database
+3. Copy your database connection string, it will look like:
+   ```
+   postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
+   ```
+4. Save this for later use in your environment variables as `DATABASE_URL`
 
-### Web Application (.env)
-Create a `.env` file in the webapp directory with these exact variables:
-```env
-SECRET_KEY=your-django-secret-key
-DEBUG=False
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-DATABASE_URL=postgres://user:password@localhost:5432/dbname
-STRIPE_PUBLISHABLE_KEY=pk_live_your_stripe_publishable_key
-STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key
-SUBSCRIPTION_PRICE_AMOUNT=500
-SITE_URL=https://yourdomain.com
-```
+## Step 2: Digital Ocean Setup
 
-### Desktop Application (.env)
-Create a `.env` file in the desktop directory:
-```env
-API_BASE_URL=https://yourdomain.com
-```
+1. Create a new Digital Ocean Droplet:
+   - Choose Ubuntu 22.04 LTS
+   - Select Basic Plan
+   - Choose Regular CPU (Basic)
+   - Select $6/mo plan (minimum recommended)
+   - Choose a datacenter region close to your target audience
+   - Add your SSH key or create a new one
+   - Choose a hostname related to your project
 
-## Deployment Process
+2. Once created, note down your Droplet's IP address
 
-### First-Time Deployment
-1. On your VPS:
-```bash
-# Clone the repository
-git clone your-repo-url
-cd your-repo-directory
+3. SSH into your Droplet:
+   ```bash
+   ssh root@your_droplet_ip
+   ```
 
-# Create and set up .env file
-nano webapp/.env
-# Add the environment variables as shown above
+4. Update system and install required packages:
+   ```bash
+   apt update && apt upgrade -y
+   apt install python3-pip python3-venv nginx certbot python3-certbot-nginx -y
+   ```
 
-# Run initialization script
-./init-letsencrypt.sh
+## Step 3: Domain Setup
 
-# Deploy the application
-./deploy.sh
-```
+1. Add DNS Records in your domain provider:
+   - Add an A record:
+     - Host: @ (or subdomain)
+     - Points to: Your Droplet's IP
+   - Add another A record:
+     - Host: www
+     - Points to: Your Droplet's IP
 
-### Updates/Changes Deployment
-1. On your local machine:
-```bash
-# Push changes to GitHub
-git add .
-git commit -m "your commit message"
-git push origin main
-```
+2. Wait for DNS propagation (can take up to 48 hours, usually much faster)
 
-2. On your VPS:
-```bash
-# Navigate to project directory
-cd your-repo-directory
+## Step 4: Project Setup
 
-# Pull latest changes
-git pull
+1. Clone this repository to your Droplet:
+   ```bash
+   git clone https://github.com/your-username/your-repo.git
+   cd your-repo/webapp
+   ```
 
-# Deploy updates
-./deploy.sh
-```
+2. Create and edit your `.env` file:
+   ```bash
+   nano .env
+   ```
 
-## Changing Domain/Server
+3. Add the following environment variables:
+   ```
+   DEBUG=False
+   SECRET_KEY=your-secret-key-here
+   ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+   CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+   DATABASE_URL=your-supabase-connection-string
+   STRIPE_PUBLISHABLE_KEY=your-stripe-publishable-key
+   STRIPE_SECRET_KEY=your-stripe-secret-key
+   SUBSCRIPTION_PRICE_AMOUNT=500
+   SITE_URL=https://yourdomain.com
+   ```
 
-### 1. Database Backup (Optional - If Moving Servers)
-```bash
-# On old server
-pg_dump -U your_db_user your_db_name > backup.sql
+4. Set up Python virtual environment:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
 
-# On new server
-psql -U your_db_user your_db_name < backup.sql
-```
+5. Run migrations:
+   ```bash
+   python manage.py migrate
+   ```
 
-### 2. Update Web Application
-1. Update `.env` file with new domain:
-```env
-ALLOWED_HOSTS=newdomain.com,www.newdomain.com
-CSRF_TRUSTED_ORIGINS=https://newdomain.com,https://www.newdomain.com
-SITE_URL=https://newdomain.com
-```
+6. Create superuser:
+   ```bash
+   python manage.py createsuperuser
+   ```
 
-2. Update Nginx configuration in `nginx/nginx.conf`:
-```nginx
-server_name newdomain.com www.newdomain.com;
-```
+7. Collect static files:
+   ```bash
+   python manage.py collectstatic
+   ```
 
-3. Run SSL setup:
-```bash
-./init-letsencrypt.sh
-```
+## Step 5: Nginx Configuration
 
-4. Deploy changes:
-```bash
-./deploy.sh
-```
+1. Create Nginx configuration:
+   ```bash
+   nano /etc/nginx/sites-available/your-domain.com
+   ```
 
-### 3. Update Desktop Application
-1. Update `.env` file:
-```env
-API_BASE_URL=https://newdomain.com
-```
+2. Add this configuration (replace your-domain.com with your actual domain):
+   ```nginx
+   upstream webapp {
+       server 127.0.0.1:8000;
+   }
 
-## Features and Usage
+   server {
+       listen 80;
+       server_name your-domain.com www.your-domain.com;
+       
+       location /.well-known/acme-challenge/ {
+           root /var/www/certbot;
+           try_files $uri =404;
+       }
 
-### User Management
-- Case-insensitive email/username login
-- Profile management (email, username, password updates)
-- Account deletion with automatic subscription cancellation
+       location / {
+           return 301 https://$host$request_uri;
+       }
+   }
 
-### Subscription Management
-- $5/month subscription using Stripe
-- Automatic access management
-- Subscription cancellation with remaining time honored
+   server {
+       listen 443 ssl;
+       server_name your-domain.com www.your-domain.com;
 
-### Desktop Application
-- Available only to subscribed users
-- Task management with priority levels
-- Real-time updates
-- Secure authentication with web application
+       ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+       
+       location / {
+           proxy_pass http://webapp;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
 
-## File Structure
-```
-webapp/
-├── core/                 # Project settings
-│   ├── settings.py      # Main settings file
-│   └── urls.py          # Main URL routing
-├── main/                # Main application
-│   ├── models.py        # User and subscription models
-│   ├── views.py         # Views and API endpoints
-│   ├── urls.py          # App URL routing
-│   └── stripe_utils.py  # Stripe integration
-├── templates/           # HTML templates
-├── static/              # Static files
-├── nginx/              # Nginx configuration
-├── init-letsencrypt.sh # SSL setup script
-├── deploy.sh           # Deployment script
-└── requirements.txt    # Python dependencies
+       location /static/ {
+           alias /path/to/your/repo/webapp/staticfiles/;
+           expires 30d;
+           add_header Cache-Control "public, no-transform";
+       }
 
-desktop/
-├── app.py             # Desktop app main file
-├── index.html         # Desktop UI
-├── requirements.txt   # Dependencies
-└── .env              # Configuration
-```
+       location /media/ {
+           alias /path/to/your/repo/webapp/media/;
+           expires 30d;
+           add_header Cache-Control "public, no-transform";
+       }
+   }
+   ```
+
+3. Enable the site:
+   ```bash
+   ln -s /etc/nginx/sites-available/your-domain.com /etc/nginx/sites-enabled/
+   rm /etc/nginx/sites-enabled/default
+   nginx -t
+   systemctl restart nginx
+   ```
+
+## Step 6: SSL Certificate
+
+1. Get SSL certificate:
+   ```bash
+   certbot --nginx -d your-domain.com -d www.your-domain.com
+   ```
+
+## Step 7: Gunicorn Setup
+
+1. Create systemd service file:
+   ```bash
+   nano /etc/systemd/system/gunicorn.service
+   ```
+
+2. Add this configuration:
+   ```ini
+   [Unit]
+   Description=gunicorn daemon
+   After=network.target
+
+   [Service]
+   User=root
+   Group=www-data
+   WorkingDirectory=/path/to/your/repo/webapp
+   ExecStart=/path/to/your/repo/webapp/venv/bin/gunicorn core.wsgi:application --workers 3 --bind 127.0.0.1:8000
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. Start and enable Gunicorn:
+   ```bash
+   systemctl start gunicorn
+   systemctl enable gunicorn
+   ```
+
+## Step 8: Stripe Setup
+
+1. Go to Stripe Dashboard
+2. Get your API keys (test or live)
+3. Update your `.env` file with the keys
+4. Set up webhook endpoints in Stripe Dashboard:
+   - Add endpoint: https://your-domain.com/stripe/webhook/
+   - Select events: customer.subscription.updated, customer.subscription.deleted
+
+## Final Steps
+
+1. Test your site by visiting https://your-domain.com
+2. Create a test subscription to verify Stripe integration
+3. Monitor your logs for any issues:
+   ```bash
+   tail -f /path/to/your/repo/webapp/django.log
+   ```
 
 ## Common Issues
 
-### Deployment Issues
-1. **Permission Errors**:
+1. If static files aren't loading:
    ```bash
-   chmod +x deploy.sh
-   chmod +x init-letsencrypt.sh
+   python manage.py collectstatic --no-input
    ```
 
-2. **Database Connection**:
-   - Verify PostgreSQL is running
-   - Check DATABASE_URL format
-   - Ensure database user permissions
+2. If database isn't connecting:
+   - Verify DATABASE_URL in .env
+   - Check Supabase firewall rules
 
-3. **SSL Certificate**:
-   - Run `init-letsencrypt.sh` for new domains
-   - Check certificate renewal status
-
-### Application Issues
-1. **Subscription Not Recognized**:
-   - Check Stripe keys in .env
-   - Verify subscription_end date in admin panel
-   - Ensure subscription_status is correct
-
-2. **Desktop App Connection**:
-   - Verify API_BASE_URL in desktop/.env
-   - Check subscription status
-   - Ensure CORS settings in Django
-
-## Development Setup
-
-### Local Development
-1. Set up local environment:
-```bash
-# Clone repository
-git clone your-repo-url
-cd your-repo-directory
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-
-# Install dependencies
-pip install -r webapp/requirements.txt
-pip install -r desktop/requirements.txt
-
-# Set up .env files for development
-# webapp/.env
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-DATABASE_URL=sqlite:///db.sqlite3
-STRIPE_PUBLISHABLE_KEY=pk_test_your_test_key
-STRIPE_SECRET_KEY=sk_test_your_test_key
-SITE_URL=http://localhost:8000
-
-# desktop/.env
-API_BASE_URL=http://localhost:8000
-```
-
-2. Run development servers:
-```bash
-# Web application
-python webapp/manage.py runserver
-
-# Desktop application (in separate terminal)
-python desktop/app.py
-```
+3. If Stripe isn't working:
+   - Verify webhook endpoints
+   - Check STRIPE_* environment variables
 
 ## Security Notes
-- All passwords are hashed using Django's password hasher
-- Email/username comparisons are case-insensitive
-- CSRF protection enabled for all POST requests
-- SSL required in production
-- Desktop app requires valid subscription token 
+
+- Keep your .env file secure and never commit it to version control
+- Regularly update your packages
+- Monitor Nginx and Django logs for suspicious activity
+- Set up regular database backups in Supabase 
