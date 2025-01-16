@@ -45,6 +45,6 @@ class CustomUser(AbstractUser):
     @property
     def is_subscription_active(self):
         return (
-            self.subscription_status == 'active' and 
+            (self.subscription_status in ['active', 'cancelled']) and 
             (self.subscription_end is None or self.subscription_end > timezone.now())
         )
