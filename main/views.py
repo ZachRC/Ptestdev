@@ -4,9 +4,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from .models import CustomUser
 from django.db.models import Q
 from .stripe_utils import create_subscription_session, handle_subscription_success, cancel_subscription, delete_stripe_customer
+import json
 
 def index(request):
     return render(request, 'main/index.html')
@@ -41,6 +44,44 @@ def login_view(request):
             messages.error(request, 'Invalid credentials')
     
     return render(request, 'main/login.html')
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_login(request):
+    try:
+        data = json.loads(request.body)
+        email = data.get('email')
+        password = data.get('password')
+        
+        user = authenticate(request, username=email, password=password)
+        
+        if user is not None:
+            if user.is_subscription_active:
+                return JsonResponse({
+                    'token': 'desktop_token',  # In a real app, generate a proper token
+                    'user': {
+                        'email': user.email,
+                        'username': user.username,
+                        'is_subscription_active': user.is_subscription_active,
+                        'subscription_end': user.subscription_end.isoformat() if user.subscription_end else None
+                    }
+                })
+            else:
+                return JsonResponse({
+                    'error': 'Subscription required',
+                    'message': 'Active subscription required to use the desktop app'
+                }, status=403)
+        else:
+            return JsonResponse({
+                'error': 'Invalid credentials',
+                'message': 'Invalid email or password'
+            }, status=401)
+            
+    except Exception as e:
+        return JsonResponse({
+            'error': 'Server error',
+            'message': str(e)
+        }, status=500)
 
 def register_view(request):
     if request.method == 'POST':
