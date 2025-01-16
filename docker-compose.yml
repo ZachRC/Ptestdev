@@ -17,8 +17,6 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
-    extra_hosts:
-      - "aws-0-us-east-2.pooler.supabase.com:155.138.151.119"
 
   nginx:
     image: nginx:alpine

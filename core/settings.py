@@ -89,9 +89,15 @@ DATABASES = {
         'USER': os.getenv('DB_USER', 'postgres.ccpqqmltyqwwzzfnxity'),
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', 'aws-0-us-east-2.pooler.supabase.com'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'PORT': os.getenv('DB_PORT', '6543'),
         'OPTIONS': {
             'sslmode': 'require',
+            'application_name': 'django_app',
+            'connect_timeout': 10,
+            'keepalives': 1,
+            'keepalives_idle': 30,
+            'keepalives_interval': 10,
+            'keepalives_count': 5,
         },
     }
 }
