@@ -1,244 +1,216 @@
-# Deployment Guide
+# Premium Web Application Deployment Guide
 
-This guide will help you deploy this web application using Digital Ocean, Supabase, and set up your domain.
+This guide will help you set up this premium web application template with your own infrastructure (DigitalOcean, Supabase, custom domain, etc.).
 
 ## Prerequisites
 
-- A Digital Ocean account
+- A DigitalOcean account
 - A Supabase account
 - A domain name
-- Stripe account (for subscription handling)
+- A Stripe account
+- Git installed on your local machine
+- Basic knowledge of terminal/command line
 
-## Step 1: Database Setup (Supabase)
+## Step 1: Clone and Configure Repository
 
-1. Create a new Supabase project
-2. Go to Project Settings > Database
-3. Copy your database connection string, it will look like:
-   ```
-   postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
-   ```
-4. Save this for later use in your environment variables as `DATABASE_URL`
+1. Clone the repository to your local machine:
+```bash
+git clone <repository-url>
+cd webapp
+```
 
-## Step 2: Digital Ocean Setup
+2. Create a new GitHub repository for your project and update the remote:
+```bash
+git remote remove origin
+git remote add origin <your-new-repo-url>
+```
 
-1. Create a new Digital Ocean Droplet:
+## Step 2: Infrastructure Setup
+
+### A. DigitalOcean Droplet Setup
+1. Create a new Ubuntu droplet on DigitalOcean
    - Choose Ubuntu 22.04 LTS
-   - Select Basic Plan
-   - Choose Regular CPU (Basic)
-   - Select $6/mo plan (minimum recommended)
+   - Select Basic plan (minimum 2GB RAM recommended)
    - Choose a datacenter region close to your target audience
-   - Add your SSH key or create a new one
-   - Choose a hostname related to your project
+   - Add your SSH key
+   - Create droplet
 
-2. Once created, note down your Droplet's IP address
+2. Note your droplet's IP address for later use
 
-3. SSH into your Droplet:
-   ```bash
-   ssh root@your_droplet_ip
+### B. Supabase Database Setup
+1. Create a new project in Supabase
+2. Go to Project Settings → Database
+3. Copy the database connection string (format: `postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres`)
+
+### C. Domain Configuration
+1. Go to your domain registrar
+2. Add these DNS records:
    ```
+   A Record:
+   - Host: @ or your domain
+   - Points to: Your DigitalOcean Droplet IP
 
-4. Update system and install required packages:
-   ```bash
-   apt update && apt upgrade -y
-   apt install python3-pip python3-venv nginx certbot python3-certbot-nginx -y
+   A Record:
+   - Host: www
+   - Points to: Your DigitalOcean Droplet IP
    ```
+3. Wait for DNS propagation (can take up to 48 hours)
 
-## Step 3: Domain Setup
+### D. Stripe Setup
+1. Create a Stripe account
+2. Get your API keys from the Stripe Dashboard
+   - Publishable key
+   - Secret key
 
-1. Add DNS Records in your domain provider:
-   - Add an A record:
-     - Host: @ (or subdomain)
-     - Points to: Your Droplet's IP
-   - Add another A record:
-     - Host: www
-     - Points to: Your Droplet's IP
+## Step 3: Configuration Files Update
 
-2. Wait for DNS propagation (can take up to 48 hours, usually much faster)
+### A. Environment Variables (.env)
+Create a new `.env` file in the webapp directory:
+```env
+DEBUG=False
+SECRET_KEY=your-secure-secret-key
+ALLOWED_HOSTS=your-domain.com,www.your-domain.com
+CSRF_TRUSTED_ORIGINS=https://your-domain.com,https://www.your-domain.com
+DATABASE_URL=your-supabase-connection-string
+STRIPE_PUBLISHABLE_KEY=your-stripe-publishable-key
+STRIPE_SECRET_KEY=your-stripe-secret-key
+SUBSCRIPTION_PRICE_AMOUNT=500
+SITE_URL=https://your-domain.com
+```
 
-## Step 4: Project Setup
+### B. Nginx Configuration
+Update `webapp/nginx/nginx.conf`:
+```nginx
+server_name your-domain.com www.your-domain.com;
+ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+```
 
-1. Clone this repository to your Droplet:
-   ```bash
-   git clone https://github.com/your-username/your-repo.git
-   cd your-repo/webapp
-   ```
+### C. SSL Certificate Script
+Update `webapp/init-letsencrypt.sh`:
+```bash
+domains=(your-domain.com www.your-domain.com)
+email="your-email@example.com"    # Adding a valid address is strongly recommended
+```
 
-2. Create and edit your `.env` file:
-   ```bash
-   nano .env
-   ```
+Make the script executable:
+```bash
+chmod +x init-letsencrypt.sh
+```
 
-3. Add the following environment variables:
-   ```
-   DEBUG=False
-   SECRET_KEY=your-secret-key-here
-   ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-   CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-   DATABASE_URL=your-supabase-connection-string
-   STRIPE_PUBLISHABLE_KEY=your-stripe-publishable-key
-   STRIPE_SECRET_KEY=your-stripe-secret-key
-   SUBSCRIPTION_PRICE_AMOUNT=500
-   SITE_URL=https://yourdomain.com
-   ```
+### D. Django Settings
+Update `webapp/core/settings.py`:
+```python
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'your-domain.com,www.your-domain.com').split(',')
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://your-domain.com,https://www.your-domain.com').split(',')
+SITE_URL = 'https://your-domain.com'
+```
 
-4. Set up Python virtual environment:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
+## Step 4: Deployment
 
-5. Run migrations:
-   ```bash
-   python manage.py migrate
-   ```
+1. Push your changes to your new repository:
+```bash
+git add .
+git commit -m "Initial configuration"
+git push origin main
+```
 
-6. Create superuser:
-   ```bash
-   python manage.py createsuperuser
-   ```
+2. SSH into your DigitalOcean droplet:
+```bash
+ssh root@your-droplet-ip
+```
 
-7. Collect static files:
-   ```bash
-   python manage.py collectstatic
-   ```
+3. Install Git and clone your repository:
+```bash
+apt update
+apt install git
+cd ~
+git clone <your-new-repo-url>
+cd webapp
+```
 
-## Step 5: Nginx Configuration
+4. Initialize SSL certificates:
+```bash
+./init-letsencrypt.sh
+```
 
-1. Create Nginx configuration:
-   ```bash
-   nano /etc/nginx/sites-available/your-domain.com
-   ```
+5. Deploy the application:
+```bash
+./deploy.sh
+```
 
-2. Add this configuration (replace your-domain.com with your actual domain):
-   ```nginx
-   upstream webapp {
-       server 127.0.0.1:8000;
-   }
+## Step 5: Verify Deployment
 
-   server {
-       listen 80;
-       server_name your-domain.com www.your-domain.com;
-       
-       location /.well-known/acme-challenge/ {
-           root /var/www/certbot;
-           try_files $uri =404;
-       }
+1. Visit your domain (https://your-domain.com)
+2. Test user registration and login
+3. Test Stripe subscription
+4. Test the desktop application connection
 
-       location / {
-           return 301 https://$host$request_uri;
-       }
-   }
+## Common Issues and Troubleshooting
 
-   server {
-       listen 443 ssl;
-       server_name your-domain.com www.your-domain.com;
+### Database Connection Issues
+- Verify your Supabase connection string
+- Check if the IP of your droplet is allowed in Supabase
 
-       ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-       ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
-       
-       location / {
-           proxy_pass http://webapp;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
+### SSL Certificate Issues
+- Ensure DNS propagation is complete
+- Check if ports 80 and 443 are open on your droplet
+- Verify domain configuration in nginx.conf
 
-       location /static/ {
-           alias /path/to/your/repo/webapp/staticfiles/;
-           expires 30d;
-           add_header Cache-Control "public, no-transform";
-       }
+### Stripe Integration Issues
+- Verify your Stripe API keys
+- Check webhook configuration
+- Test with Stripe test mode first
 
-       location /media/ {
-           alias /path/to/your/repo/webapp/media/;
-           expires 30d;
-           add_header Cache-Control "public, no-transform";
-       }
-   }
-   ```
+## Security Considerations
 
-3. Enable the site:
-   ```bash
-   ln -s /etc/nginx/sites-available/your-domain.com /etc/nginx/sites-enabled/
-   rm /etc/nginx/sites-enabled/default
-   nginx -t
-   systemctl restart nginx
-   ```
+1. Update the Django SECRET_KEY
+2. Use strong passwords for:
+   - Database
+   - Admin account
+   - Server access
 
-## Step 6: SSL Certificate
+3. Keep your .env file secure and never commit it to version control
 
-1. Get SSL certificate:
-   ```bash
-   certbot --nginx -d your-domain.com -d www.your-domain.com
-   ```
+4. Regularly update dependencies:
+```bash
+pip install -r requirements.txt --upgrade
+```
 
-## Step 7: Gunicorn Setup
+## Maintenance
 
-1. Create systemd service file:
-   ```bash
-   nano /etc/systemd/system/gunicorn.service
-   ```
+### Regular Updates
+```bash
+# SSH into your server
+ssh root@your-droplet-ip
 
-2. Add this configuration:
-   ```ini
-   [Unit]
-   Description=gunicorn daemon
-   After=network.target
+# Pull latest changes
+cd ~/webapp
+git pull
 
-   [Service]
-   User=root
-   Group=www-data
-   WorkingDirectory=/path/to/your/repo/webapp
-   ExecStart=/path/to/your/repo/webapp/venv/bin/gunicorn core.wsgi:application --workers 3 --bind 127.0.0.1:8000
+# Deploy updates
+./deploy.sh
+```
 
-   [Install]
-   WantedBy=multi-user.target
-   ```
+### Backup Database
+Regularly backup your Supabase database using their dashboard or API
 
-3. Start and enable Gunicorn:
-   ```bash
-   systemctl start gunicorn
-   systemctl enable gunicorn
-   ```
+### Monitor Logs
+```bash
+# View application logs
+docker-compose logs -f web
 
-## Step 8: Stripe Setup
+# View nginx logs
+docker-compose logs -f nginx
+```
 
-1. Go to Stripe Dashboard
-2. Get your API keys (test or live)
-3. Update your `.env` file with the keys
-4. Set up webhook endpoints in Stripe Dashboard:
-   - Add endpoint: https://your-domain.com/stripe/webhook/
-   - Select events: customer.subscription.updated, customer.subscription.deleted
+## Support and Resources
 
-## Final Steps
+- [DigitalOcean Documentation](https://docs.digitalocean.com)
+- [Supabase Documentation](https://supabase.io/docs)
+- [Stripe Documentation](https://stripe.com/docs)
+- [Django Documentation](https://docs.djangoproject.com)
 
-1. Test your site by visiting https://your-domain.com
-2. Create a test subscription to verify Stripe integration
-3. Monitor your logs for any issues:
-   ```bash
-   tail -f /path/to/your/repo/webapp/django.log
-   ```
+## License
 
-## Common Issues
-
-1. If static files aren't loading:
-   ```bash
-   python manage.py collectstatic --no-input
-   ```
-
-2. If database isn't connecting:
-   - Verify DATABASE_URL in .env
-   - Check Supabase firewall rules
-
-3. If Stripe isn't working:
-   - Verify webhook endpoints
-   - Check STRIPE_* environment variables
-
-## Security Notes
-
-- Keep your .env file secure and never commit it to version control
-- Regularly update your packages
-- Monitor Nginx and Django logs for suspicious activity
-- Set up regular database backups in Supabase 
+This project is licensed under the MIT License - see the LICENSE file for details 
