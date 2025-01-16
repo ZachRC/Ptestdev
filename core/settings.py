@@ -206,3 +206,19 @@ SITE_URL = 'https://reachero.com'
 STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
 SUBSCRIPTION_PRICE_AMOUNT = int(os.getenv('SUBSCRIPTION_PRICE_AMOUNT', 500))  # $5.00 in cents
+
+# Add after the existing security settings
+MIDDLEWARE.insert(1, 'django.middleware.security.SecurityMiddleware')
+
+# Security Headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# Content Security Policy
+CSP_DEFAULT_SRC = ("'self'", "https://*.stripe.com", "https://*.stripe.network")
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "https://*.stripe.com", "https://*.stripe.network")
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://*.stripe.com", "https://cdn.tailwindcss.com")
+CSP_IMG_SRC = ("'self'", "https://*.stripe.com", "data:", "https:")
+CSP_FRAME_SRC = ("'self'", "https://*.stripe.com", "https://*.stripe.network")
+CSP_CONNECT_SRC = ("'self'", "https://*.stripe.com", "https://*.stripe.network")

@@ -26,6 +26,9 @@ def create_subscription_session(user):
         product_data={'name': 'Monthly Subscription'}
     )
 
+    success_url = f"{settings.SITE_URL}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{settings.SITE_URL}/subscription/cancel"
+
     session = stripe.checkout.Session.create(
         customer=customer_id,
         payment_method_types=['card'],
@@ -34,21 +37,28 @@ def create_subscription_session(user):
             'quantity': 1,
         }],
         mode='subscription',
-        success_url=settings.SITE_URL + '/subscription/success/',
-        cancel_url=settings.SITE_URL + '/subscription/cancel/',
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={
+            'user_id': user.id
+        }
     )
     return session
 
 def handle_subscription_success(session_id):
-    session = stripe.checkout.Session.retrieve(session_id)
-    subscription = stripe.Subscription.retrieve(session.subscription)
-    
-    from .models import CustomUser
-    user = CustomUser.objects.get(stripe_customer_id=session.customer)
-    
-    # Set subscription status and end date
-    user.subscription_status = 'active'
-    user.subscription_end = timezone.now() + timedelta(days=30)
-    user.save()
-    
-    return user 
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        subscription = stripe.Subscription.retrieve(session.subscription)
+        
+        from .models import CustomUser
+        user = CustomUser.objects.get(stripe_customer_id=session.customer)
+        
+        # Set subscription status and end date
+        user.subscription_status = 'active'
+        user.subscription_end = timezone.now() + timedelta(days=30)
+        user.save()
+        
+        return user
+    except Exception as e:
+        print(f"Error handling subscription: {str(e)}")
+        return None 

@@ -85,9 +85,19 @@ def create_checkout_session(request):
 @login_required
 def subscription_success(request):
     session_id = request.GET.get('session_id')
-    if session_id:
-        handle_subscription_success(session_id)
-    messages.success(request, 'Successfully subscribed!')
+    if not session_id:
+        messages.error(request, 'No session ID provided')
+        return redirect('main:dashboard')
+        
+    try:
+        user = handle_subscription_success(session_id)
+        if user:
+            messages.success(request, 'Successfully subscribed!')
+        else:
+            messages.error(request, 'Error processing subscription')
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+    
     return redirect('main:dashboard')
 
 @login_required
