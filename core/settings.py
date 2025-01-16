@@ -129,32 +129,20 @@ LOGGING['loggers']['django.db.backends'] = {
     'propagate': False,
 }
 
-# Configure database with optimized settings for Supabase
+# Configure database with direct connection settings
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'OPTIONS': {
-            'options': '-c search_path=public',
-            'sslmode': 'require',
-            'connect_timeout': 30,
-            'keepalives': 1,
-            'keepalives_idle': 130,
-            'keepalives_interval': 10,
-            'keepalives_count': 10,
-            'application_name': 'django_app',
-            'client_encoding': 'UTF8',
-        },
-    }
+    'default': dj_database_url.parse(
+        database_url,
+        conn_max_age=600,
+        ssl_require=True,
+    )
 }
 
-# Parse database URL and update configuration
-db_config = dj_database_url.parse(database_url)
-DATABASES['default'].update(db_config)
-
-# Ensure these settings are not overridden
-DATABASES['default']['CONN_MAX_AGE'] = 0
-DATABASES['default']['POOL_TIMEOUT'] = 30
-DATABASES['default']['OPTIONS']['sslmode'] = 'require'
+# Add connection options
+DATABASES['default']['OPTIONS'] = {
+    'sslmode': 'require',
+    'connect_timeout': 30,
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
