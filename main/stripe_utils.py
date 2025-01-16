@@ -61,4 +61,57 @@ def handle_subscription_success(session_id):
         return user
     except Exception as e:
         print(f"Error handling subscription: {str(e)}")
-        return None 
+        return None
+
+def cancel_subscription(user):
+    try:
+        if not user.stripe_customer_id:
+            return False, "No subscription found"
+
+        # Get all subscriptions for the customer
+        subscriptions = stripe.Subscription.list(
+            customer=user.stripe_customer_id,
+            status='active',
+            limit=1
+        )
+
+        if not subscriptions.data:
+            return False, "No active subscription found"
+
+        # Cancel the subscription at period end
+        subscription = stripe.Subscription.modify(
+            subscriptions.data[0].id,
+            cancel_at_period_end=True
+        )
+
+        # Update user's subscription status but keep the end date
+        user.subscription_status = 'cancelled'
+        user.save()
+
+        return True, "Subscription will be cancelled at the end of the billing period"
+    except Exception as e:
+        return False, str(e)
+
+def delete_stripe_customer(user):
+    try:
+        if user.stripe_customer_id:
+            # Cancel any active subscriptions
+            subscriptions = stripe.Subscription.list(
+                customer=user.stripe_customer_id,
+                status='active'
+            )
+            
+            for subscription in subscriptions.data:
+                stripe.Subscription.delete(subscription.id)
+            
+            # Delete the customer
+            stripe.Customer.delete(user.stripe_customer_id)
+            
+            user.stripe_customer_id = None
+            user.subscription_status = 'inactive'
+            user.subscription_end = None
+            user.save()
+            
+        return True, "Customer deleted successfully"
+    except Exception as e:
+        return False, str(e) 

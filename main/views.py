@@ -1,12 +1,12 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
 from django.http import JsonResponse
 from .models import CustomUser
 from django.db.models import Q
-from .stripe_utils import create_subscription_session, handle_subscription_success
+from .stripe_utils import create_subscription_session, handle_subscription_success, cancel_subscription, delete_stripe_customer
 
 def index(request):
     return render(request, 'main/index.html')
@@ -102,5 +102,27 @@ def subscription_success(request):
 
 @login_required
 def subscription_cancel(request):
-    messages.info(request, 'Subscription cancelled.')
+    if request.method == 'POST':
+        success, message = cancel_subscription(request.user)
+        if success:
+            messages.success(request, message)
+        else:
+            messages.error(request, f'Error cancelling subscription: {message}')
+    return redirect('main:dashboard')
+
+@login_required
+def delete_account(request):
+    if request.method == 'POST':
+        user = request.user
+        try:
+            # Delete Stripe customer and subscriptions if they exist
+            delete_stripe_customer(user)
+            # Delete the user account
+            user.delete()
+            logout(request)
+            messages.success(request, 'Your account has been successfully deleted.')
+            return redirect('main:index')
+        except Exception as e:
+            messages.error(request, f'Error deleting account: {str(e)}')
+            return redirect('main:dashboard')
     return redirect('main:dashboard')

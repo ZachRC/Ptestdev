@@ -13,4 +13,5 @@ urlpatterns = [
     path('subscription/create-checkout-session/', views.create_checkout_session, name='create-checkout-session'),
     path('subscription/success/', views.subscription_success, name='subscription-success'),
     path('subscription/cancel/', views.subscription_cancel, name='subscription-cancel'),
+    path('account/delete/', views.delete_account, name='delete-account'),
 ] 
